@@ -6,7 +6,7 @@ public class Link {
   RouterDescription router2;
 
   public Link(RouterDescription r1, RouterDescription r2) {
-    router1 = r1;
+    router1 = r1; 
     router2 = r2;
   }
 }
