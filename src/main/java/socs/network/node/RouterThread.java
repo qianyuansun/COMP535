@@ -6,8 +6,6 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
 
-import socs.network.util.Configuration;
-
 public class RouterThread extends Thread {
 
 	Socket socket;
@@ -82,22 +80,19 @@ public class RouterThread extends Thread {
 	private void processStart() {
 
 		try {
+			//right now, only one server connected
+			Socket client = new Socket(ports[0].router2.getProcessIPAddress(), 9090);
+			BufferedReader inFromServer = new BufferedReader(new InputStreamReader(client.getInputStream()));
+			PrintWriter outToServer = new PrintWriter(client.getOutputStream(), true); 
 
-			Socket socket = new Socket(hostName, serverPort);
-			BufferedReader inFromServer = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-			PrintWriter outToServer = new PrintWriter(socket.getOutputStream(), true); // open
-																						// an
-																						// output
-																						// stream
-																						// to
-																						// the
-																						// server...
-
-			outToServer.println("Hello From " + clientPort);
+			outToServer.println("Hello From " + rd.getSimulatedIPAddress() + "\nset " + rd.getSimulatedIPAddress() + "state to INIT");
 
 			System.out.println(inFromServer.readLine());
-			// two
-			outToServer.println("Hello From " + clientPort);
+			ports[0].router2.setStatus(RouterStatus.TWO_WAY);
+			
+			outToServer.println("Hello From " + rd.getSimulatedIPAddress() + "\nset " + rd.getSimulatedIPAddress() + "state to TWO_WAY");
+			
+			client.close();
 
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
@@ -121,19 +116,21 @@ public class RouterThread extends Thread {
 	 * output the neighbors of the routers
 	 */
 	private void processNeighbors() {
-		System.out.println(ports[0].router2.getSimulatedIPAddress());
+		System.out.println("IP Address of the neighbor1: " + ports[0].router2.getSimulatedIPAddress());
 	}
 
 	/**
 	 * disconnect with all neighbors and quit the program
 	 */
 	private void processQuit() {
-
+		//TODO:
+		System.out.println("Quitting client.");
+		System.exit(1);
 	}
 
 	public void run() {
 		try {
-			
+			//as server, accept request from clients
 			BufferedReader inFromClient = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 			PrintWriter outToClient = new PrintWriter(socket.getOutputStream(), true);
 			
@@ -141,7 +138,27 @@ public class RouterThread extends Thread {
 			BufferedReader br = new BufferedReader(isReader);
 			System.out.print(">> ");
 			String command = br.readLine();
-			while (true) {
+			
+			while (true) {//works forever
+				
+				if(inFromClient.readLine() != null){
+					
+					System.out.print(inFromClient.readLine());
+					
+					//TODO: how to set client's status? might relate to LSA synchronization
+					if (client.getStatus == null) {
+						client.setStatus(RouterStatus.INIT);
+						outToClient.write("Hello From " + rd.getSimulatedIPAddress() + "\nset " + rd.getSimulatedIPAddress() + "state to TWO_WAY");
+					} else {
+						client.setStatus(RouterStatus.TWO_WAY);
+					}
+				}
+				
+				//as client, no command typed in
+				if(command == null) 
+					continue;
+				
+				//as client, with command
 				if (command.startsWith("detect ")) {
 					String[] cmdLine = command.split(" ");
 					processDetect(cmdLine[1]);
@@ -163,6 +180,7 @@ public class RouterThread extends Thread {
 					processNeighbors();
 				} else {
 					// invalid command
+					System.out.println("The interface does not support this command.");
 					break;
 				}
 				System.out.print(">> ");
@@ -170,8 +188,10 @@ public class RouterThread extends Thread {
 			}
 			isReader.close();
 			br.close();
-		} catch (Exception e) {
-			e.printStackTrace();
+			socket.close();
+		} catch (IOException e) {
+			System.out.println("Unable to read from standard in");
+            System.exit(1);
 		}
 	}
 }

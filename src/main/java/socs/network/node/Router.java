@@ -1,8 +1,6 @@
 package socs.network.node;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.net.ServerSocket;
 import java.net.Socket;
 
@@ -18,11 +16,10 @@ public class Router {
 		lsd = new LinkStateDatabase(rd);
 	}
 
-	public void terminal() {
+	public void terminal() throws IOException {
 
-		//server portNum
-		ServerSocket serverSocket = new ServerSocket(portNumber);
-		System.out.println("Router:[" + ip + "] ready...");
+		ServerSocket serverSocket = new ServerSocket(9090);
+		System.out.println("Router:[" + rd.getSimulatedIPAddress() + "] ready...");
 		while (true) {
 
 			Socket socket = serverSocket.accept();

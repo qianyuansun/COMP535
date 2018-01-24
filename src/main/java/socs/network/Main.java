@@ -14,7 +14,12 @@ public class Main {
 		}
 		Router r = new Router(new Configuration(args[0]));
 
-		r.terminal();
+		try {
+			r.terminal();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 
 	}
 }
