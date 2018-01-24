@@ -20,6 +20,7 @@ public class Router {
 
 	public void terminal() {
 
+		//server portNum
 		ServerSocket serverSocket = new ServerSocket(portNumber);
 		System.out.println("Router:[" + ip + "] ready...");
 		while (true) {
