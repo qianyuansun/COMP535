@@ -5,6 +5,8 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
+import java.net.UnknownHostException;
+import java.util.Collections;
 
 public class RouterThread extends Thread {
 
@@ -59,14 +61,33 @@ public class RouterThread extends Thread {
 	 * NOTE: this command should not trigger link database synchronization
 	 */
 	private void processAttach(String processIP, short processPort, String simulatedIP, short weight) {
-
+		
 		String msg = "Connection cannot be established.";
-
+		
 		for (Link link : ports) {
 			if (link == null) {
+				
+				try {
+					Socket client = new Socket(ports[0].router2.getProcessIPAddress(), 9090);
+					BufferedReader inFromServer = new BufferedReader(new InputStreamReader(client.getInputStream()));
+					PrintWriter outToServer = new PrintWriter(client.getOutputStream(), true); 
+
+					outToServer.println(rd.getProcessIPAddress() + "," + rd.getSimulatedIPAddress() + ","+rd.getProcessPortNumber());
+					
+					if( !inFromServer.readLine().equals("true")){
+						System.out.println(msg);
+						return;		
+					}					
+					
+				} catch (IOException e) {
+					e.printStackTrace();
+				}				
+				
 				RouterDescription r2 = new RouterDescription(processIP, processPort, simulatedIP);
 				link = new Link(rd, r2);
 				msg = "Connection established.";
+				
+				
 				break;
 			}
 		}
@@ -79,7 +100,13 @@ public class RouterThread extends Thread {
 	 */
 	private void processStart() {
 
-		try {
+		try {	
+			
+			if(ports == null || ports.length == 0){
+				System.out.println("No Neighbour connected.");
+				return;			
+			}
+							
 			//right now, only one server connected
 			Socket client = new Socket(ports[0].router2.getProcessIPAddress(), 9090);
 			BufferedReader inFromServer = new BufferedReader(new InputStreamReader(client.getInputStream()));
@@ -142,15 +169,16 @@ public class RouterThread extends Thread {
 			while (true) {//works forever
 				
 				if(inFromClient.readLine() != null){
+					if(inFromClient.readLine().startsWith("Hello"))
 					
 					System.out.print(inFromClient.readLine());
 					
-					//TODO: how to set client's status? might relate to LSA synchronization
-					if (client.getStatus == null) {
-						client.setStatus(RouterStatus.INIT);
+					//right now only one client
+					if (ports[0].router2.getStatus() == null) {
+						ports[0].router2.setStatus(RouterStatus.INIT);
 						outToClient.write("Hello From " + rd.getSimulatedIPAddress() + "\nset " + rd.getSimulatedIPAddress() + "state to TWO_WAY");
 					} else {
-						client.setStatus(RouterStatus.TWO_WAY);
+						ports[0].router2.setStatus(RouterStatus.TWO_WAY);
 					}
 				}
 				
