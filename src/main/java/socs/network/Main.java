@@ -1,7 +1,5 @@
 package socs.network;
 
-import java.io.IOException;
-
 import socs.network.node.Router;
 import socs.network.util.Configuration;
 
@@ -14,12 +12,7 @@ public class Main {
 		}
 		Router r = new Router(new Configuration(args[0]));
 
-		try {
-			r.terminal();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+		r.terminal();
 
 	}
 }
