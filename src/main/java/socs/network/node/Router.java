@@ -62,25 +62,6 @@ public class Router {
 
 		for (Link link : ports) {
 			if (link == null) {
-
-				try {
-					Socket client = new Socket(processIP, processPort);
-					BufferedReader inFromServer = new BufferedReader(new InputStreamReader(client.getInputStream()));
-					PrintWriter outToServer = new PrintWriter(client.getOutputStream(), true);
-
-					outToServer.println(rd.getProcessIPAddress() + " " + rd.getProcessPortNumber() + " " + rd.getSimulatedIPAddress());
-
-					String reply = inFromServer.readLine();
-					client.close();
-					
-					if (!reply.equals("true")) {
-						System.out.println(msg);
-						return;
-					}
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
-
 				RouterDescription r2 = new RouterDescription(processIP, processPort, simulatedIP);
 				link = new Link(rd, r2);
 				msg = "Connection established.";
@@ -107,6 +88,8 @@ public class Router {
 			Socket client = new Socket(ports[0].router2.getProcessIPAddress(), 9090);
 			BufferedReader inFromServer = new BufferedReader(new InputStreamReader(client.getInputStream()));
 			PrintWriter outToServer = new PrintWriter(client.getOutputStream(), true);
+			
+			outToServer.println(rd.getProcessIPAddress() + " " + rd.getProcessPortNumber() + " " + rd.getSimulatedIPAddress());
 
 			outToServer.println("Hello, From " + rd.getSimulatedIPAddress() + "\nset " + rd.getSimulatedIPAddress()
 					+ "state to INIT");

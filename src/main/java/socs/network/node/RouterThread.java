@@ -36,35 +36,29 @@ public class RouterThread extends Thread {
 				String[] arguments = message.split(" ");
 				String header = arguments[0];
 				
-				if (!header.equals("Hello")) {//attach request: add new link to port array
-					
-					String processIP = arguments[0];
-					Short processPort =Short.parseShort(arguments[1]);
-					String simulatedIP = arguments[2];
-					
-					String result = "false";
-					for (Link link : ports) {
-						if (link == null) {
-							RouterDescription r2 = new RouterDescription(processIP, processPort, simulatedIP);
-							link = new Link(rd, r2);	
-							result = "true";
-							break;
-						}
-					}
-					outToClient.println(result);
-				} 
-				else {// start request: return hello
+				String processIP = arguments[0];
+				Short processPort =Short.parseShort(arguments[1]);
+				String simulatedIP = arguments[2];
 
-					System.out.println(message);
-					if (ports[0].router2.getStatus() == null) {
-						ports[0].router2.setStatus(RouterStatus.INIT);
-						outToClient.write("Hello, From " + rd.getSimulatedIPAddress() + "\nset " + rd.getSimulatedIPAddress() + "state to TWO_WAY");
-					} else {
-						ports[0].router2.setStatus(RouterStatus.TWO_WAY);
+				for (Link link : ports) {
+					if (link == null) {
+						RouterDescription r2 = new RouterDescription(processIP, processPort, simulatedIP);
+						link = new Link(rd, r2);	
+						break;
 					}
 				}
+
+				System.out.println(message);
+				if (ports[0].router2.getStatus() == null) {
+					ports[0].router2.setStatus(RouterStatus.INIT);
+					outToClient.write("Hello, From " + rd.getSimulatedIPAddress() + "\nset " + rd.getSimulatedIPAddress() + "state to TWO_WAY");
+				} else {
+					ports[0].router2.setStatus(RouterStatus.TWO_WAY);
+				}
+				
 			}			
 			socket.close();
+			
 		} catch (IOException e) {
 			System.out.println("Unable to read from standard in");
             System.exit(1);
