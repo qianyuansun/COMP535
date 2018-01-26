@@ -40,6 +40,7 @@ public class RouterThread extends Thread {
 				Short processPort =Short.parseShort(arguments[1]);
 				String simulatedIP = arguments[2];
 
+				//add port in server
 				for (Link link : ports) {
 					if (link == null) {
 						RouterDescription r2 = new RouterDescription(processIP, processPort, simulatedIP);

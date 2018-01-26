@@ -79,6 +79,7 @@ public class Router {
 
 		try {
 
+			//check
 			if (ports == null || ports.length == 0) {
 				System.out.println("No Neighbour Connected.");
 				return;
