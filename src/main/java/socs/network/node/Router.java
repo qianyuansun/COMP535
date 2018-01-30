@@ -11,15 +11,17 @@ import socs.network.util.Configuration;
 
 public class Router {
 
-	RouterDescription rd = new RouterDescription();
+	static RouterDescription rd = new RouterDescription();
 	protected LinkStateDatabase lsd;
-	Link[] ports = new Link[4];
+	static Link[] ports = new Link[4];
+	
+	BufferedReader br;
 
 	public Router(Configuration config) {
 		rd.simulatedIPAddress = config.getString("socs.network.router.ip");
 		lsd = new LinkStateDatabase(rd);
 	}
-
+	
 	/**
 	 * output the shortest path to the given destination ip
 	 * <p/>
@@ -41,9 +43,9 @@ public class Router {
 	 */
 	private void processDisconnect(short portNumber) {
 
-		for (Link link : ports) {
-			if (link != null && link.router2.getProcessPortNumber() == portNumber) {
-				link = null;
+		for (int i = 0; i < 4; i++) {
+			if (ports[i] != null && ports[i].router2.getProcessPortNumber() == portNumber) {
+				ports[i] = null;
 			}
 		}
 	}
@@ -59,11 +61,11 @@ public class Router {
 	private void processAttach(String processIP, short processPort, String simulatedIP, short weight) {
 
 		String msg = "Connection cannot be established.";
-
-		for (Link link : ports) {
-			if (link == null) {
+		
+		for (int i = 0; i < 4; i++) {
+			if(ports[i] == null){
 				RouterDescription r2 = new RouterDescription(processIP, processPort, simulatedIP);
-				link = new Link(rd, r2);
+				ports[i] = new Link(rd, r2);
 				msg = "Connection established.";
 				break;
 			}
@@ -78,31 +80,37 @@ public class Router {
 	private void processStart() {
 
 		try {
-
-			//check
-			if (ports == null || ports.length == 0) {
-				System.out.println("No Neighbour Connected.");
-				return;
-			}
-
-			// right now, only one server connected
-			Socket client = new Socket(ports[0].router2.getProcessIPAddress(), 9090);
-			BufferedReader inFromServer = new BufferedReader(new InputStreamReader(client.getInputStream()));
-			PrintWriter outToServer = new PrintWriter(client.getOutputStream(), true);
+			boolean hasNeighbour = false;
 			
-			outToServer.println(rd.getProcessIPAddress() + " " + rd.getProcessPortNumber() + " " + rd.getSimulatedIPAddress());
+			for (int i = 0; i < 4; i++) {
+				if(ports[i] != null){
+					hasNeighbour = true;
+					
+					Socket client = new Socket(ports[i].router2.getProcessIPAddress(), ports[i].router2.getProcessPortNumber());
+					BufferedReader inFromServer = new BufferedReader(new InputStreamReader(client.getInputStream()));
+					PrintWriter outToServer = new PrintWriter(client.getOutputStream(), true);
 
-			outToServer.println("Hello, From " + rd.getSimulatedIPAddress() + "\nset " + rd.getSimulatedIPAddress()
-					+ "state to INIT");
+					outToServer.println(
+							ports[i].router2.getProcessIPAddress() + " " + rd.getProcessPortNumber() + " " + rd.getSimulatedIPAddress());
+					inFromServer.readLine();
+					
+					outToServer.println("Hello From " + rd.getSimulatedIPAddress() + "\nset " + rd.getSimulatedIPAddress()
+							+ " state to INIT");
 
-			System.out.println(inFromServer.readLine());
-			ports[0].router2.setStatus(RouterStatus.TWO_WAY);
+					System.out.println(inFromServer.readLine());
+					ports[i].router2.setStatus(RouterStatus.TWO_WAY);
 
-			outToServer.println("Hello, From " + rd.getSimulatedIPAddress() + "\nset " + rd.getSimulatedIPAddress()
-					+ "state to TWO_WAY");
+					outToServer.println("Hello, From " + rd.getSimulatedIPAddress() + "\nset " + rd.getSimulatedIPAddress()
+						+ " state to TWO_WAY");
 
-			client.close();
-
+					client.close();		
+				}
+			}
+			
+			if(!hasNeighbour){
+				System.out.println("No Neighbour Connected.");
+			}
+			
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -136,57 +144,80 @@ public class Router {
 		System.exit(1);
 	}
 
-	public void terminal(){
+	public void terminal(String port) {
 		try {
+			this.rd.setProcessPortNumber(Short.parseShort(port));
 			
-			ServerSocket serverSocket = new ServerSocket(9090);
+			int portNum = Integer.parseInt(port);
+			ServerSocket serverSocket = new ServerSocket(portNum);
+			
 			System.out.println("Router:[" + rd.getSimulatedIPAddress() + "] ready...");
-			
-			InputStreamReader isReader = new InputStreamReader(System.in);
-			BufferedReader br = new BufferedReader(isReader);
-			System.out.print(">> ");
-			String command = br.readLine();
+					
+			startClient();
 			
 			while (true) {
-
 				Socket socket = serverSocket.accept();
 				new RouterThread(socket, rd, ports).start();
-
-				if (command.startsWith("detect ")) {
-					String[] cmdLine = command.split(" ");
-					processDetect(cmdLine[1]);
-				} else if (command.startsWith("disconnect ")) {
-					String[] cmdLine = command.split(" ");
-					processDisconnect(Short.parseShort(cmdLine[1]));
-				} else if (command.startsWith("quit")) {
-					processQuit();
-				} else if (command.startsWith("attach ")) {
-					String[] cmdLine = command.split(" ");
-					processAttach(cmdLine[1], Short.parseShort(cmdLine[2]), cmdLine[3], Short.parseShort(cmdLine[4]));
-				} else if (command.equals("start")) {
-					processStart();
-				} else if (command.equals("connect ")) {
-					String[] cmdLine = command.split(" ");
-					processConnect(cmdLine[1], Short.parseShort(cmdLine[2]), cmdLine[3], Short.parseShort(cmdLine[4]));
-				} else if (command.equals("neighbors")) {
-					// output neighbors
-					processNeighbors();
-				} else {
-					// invalid command
-					System.out.println("The interface does not support this command.");
-					break;
-				}
-				System.out.print(">> ");
-				command = br.readLine();
 			}
-			isReader.close();
-			br.close();
-
+			
 		} catch (IOException e) {
 			System.out.println("Unable to read from standard in");
 			System.exit(1);
 		}
 
+	}
+
+	public void startClient() {
+        (new Thread() {
+            @Override
+            public void run() {
+                try {
+                	InputStreamReader isReader = new InputStreamReader(System.in);
+        			BufferedReader br = new BufferedReader(isReader);
+        			
+                	while (true) {
+                		System.out.print(">> ");
+        				String command = br.readLine();
+        				
+        				if (command.startsWith("detect ")) {
+        					String[] cmdLine = command.split(" ");
+        					processDetect(cmdLine[1]);
+        				} else if (command.startsWith("disconnect ")) {
+        					String[] cmdLine = command.split(" ");
+        					processDisconnect(Short.parseShort(cmdLine[1]));
+        				} else if (command.startsWith("quit")) {
+        					processQuit();
+        				} else if (command.startsWith("attach ")) {
+        					String[] cmdLine = command.split(" ");
+        					processAttach(cmdLine[1], Short.parseShort(cmdLine[2]), cmdLine[3], Short.parseShort(cmdLine[4]));
+        				} else if (command.equals("start")) {
+        					processStart();
+        				} else if (command.equals("connect ")) {
+        					String[] cmdLine = command.split(" ");
+        					processConnect(cmdLine[1], Short.parseShort(cmdLine[2]), cmdLine[3], Short.parseShort(cmdLine[4]));
+        				} else if (command.equals("neighbors")) {
+        					// output neighbors
+        					processNeighbors();
+        				} else {
+        					// invalid command
+        					System.out.println("The interface does not support this command.");
+        					break;
+        				}
+					}
+					br.close();
+					isReader.close();
+
+					/*
+					 * out.write("Hello World!"); out.newLine(); out.flush();
+					 * 
+					 * Thread.sleep(200);
+					 */
+
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+		}).start();
 	}
 
 }
