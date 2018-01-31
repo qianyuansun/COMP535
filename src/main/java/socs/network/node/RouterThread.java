@@ -1,9 +1,8 @@
 package socs.network.node;
 
-import java.io.BufferedReader;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
 import java.net.Socket;
 
 public class RouterThread extends Thread {
@@ -25,12 +24,13 @@ public class RouterThread extends Thread {
 
 	public void run() {
 		try {
+			DataInputStream inFromClient = new DataInputStream(socket.getInputStream());
+			DataOutputStream outToClient = new DataOutputStream(socket.getOutputStream());			
+			
 			// as server, accept request from clients
-			BufferedReader inFromClient = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-			PrintWriter outToClient = new PrintWriter(socket.getOutputStream(), true);
 			String message = null;
 
-			while ((message = inFromClient.readLine()) != null) {
+			while ((message = inFromClient.readUTF()) != null) {
 				//hello
 				if (message.startsWith("Hello ")) {
 					
@@ -47,10 +47,10 @@ public class RouterThread extends Thread {
 
 					if (ports[0].router2.getStatus() == null) {
 						ports[0].router2.setStatus(RouterStatus.INIT);
-						outToClient.write("Hello From " + rd.getSimulatedIPAddress() + "\nset "
-								+ rd.getSimulatedIPAddress() + " state to TWO_WAY");
+						outToClient.writeUTF("Hello From " + rd.getSimulatedIPAddress() + "\nSet " + rd.getSimulatedIPAddress() + " state to TWO_WAY");
 					} else {
 						ports[0].router2.setStatus(RouterStatus.TWO_WAY);
+						outToClient.writeUTF("Done");
 					}
 				//r2 router description
 				}else{
@@ -61,17 +61,18 @@ public class RouterThread extends Thread {
 					String simulatedIP = arguments[2];
 
 					// add port in server
+					String hasSpot = "false";
 					for (int i = 0; i < 4; i++) {
 						if (ports[i] == null) {
+							hasSpot = "true";
 							RouterDescription r2 = new RouterDescription(processIP, processPort, simulatedIP);
 							ports[i] = new Link(rd, r2);
-							outToClient.write("true");
 							break;
 						}
 					}
+					outToClient.writeUTF(hasSpot);					
 				}
-			}
-			
+			}			
 			socket.close();
 
 		} catch (IOException e) {

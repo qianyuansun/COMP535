@@ -12,7 +12,7 @@ public class Main {
 		}
 		Router r = new Router(new Configuration(args[0]));
 
-		r.terminal(args[1]);
+		r.terminal();
 
 	}
 }

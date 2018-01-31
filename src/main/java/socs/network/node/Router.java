@@ -1,9 +1,10 @@
 package socs.network.node;
 
 import java.io.BufferedReader;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 
@@ -14,11 +15,10 @@ public class Router {
 	static RouterDescription rd = new RouterDescription();
 	protected LinkStateDatabase lsd;
 	static Link[] ports = new Link[4];
-	
-	BufferedReader br;
 
 	public Router(Configuration config) {
 		rd.simulatedIPAddress = config.getString("socs.network.router.ip");
+		rd.processPortNumber = config.getShort("socs.network.router.port");
 		lsd = new LinkStateDatabase(rd);
 	}
 	
@@ -87,23 +87,31 @@ public class Router {
 					hasNeighbour = true;
 					
 					Socket client = new Socket(ports[i].router2.getProcessIPAddress(), ports[i].router2.getProcessPortNumber());
-					BufferedReader inFromServer = new BufferedReader(new InputStreamReader(client.getInputStream()));
-					PrintWriter outToServer = new PrintWriter(client.getOutputStream(), true);
-
-					outToServer.println(
-							ports[i].router2.getProcessIPAddress() + " " + rd.getProcessPortNumber() + " " + rd.getSimulatedIPAddress());
-					inFromServer.readLine();
 					
-					outToServer.println("Hello From " + rd.getSimulatedIPAddress() + "\nset " + rd.getSimulatedIPAddress()
+					DataOutputStream outToServer = new DataOutputStream(client.getOutputStream());
+					DataInputStream inFromServer = new DataInputStream(client.getInputStream());
+					
+					outToServer.writeUTF(
+							ports[i].router2.getProcessIPAddress() + " " + rd.getProcessPortNumber() + " " + rd.getSimulatedIPAddress());
+					
+					if(inFromServer.readUTF().equals("false")){
+						System.out.println("No Spot Avavilable in Router: " + ports[i].router2.getSimulatedIPAddress());
+						continue;
+					}
+					
+					outToServer.writeUTF("Hello From " + rd.getSimulatedIPAddress() + "\nSet " + rd.getSimulatedIPAddress()
 							+ " state to INIT");
 
-					System.out.println(inFromServer.readLine());
+					System.out.println(inFromServer.readUTF());
 					ports[i].router2.setStatus(RouterStatus.TWO_WAY);
 
-					outToServer.println("Hello, From " + rd.getSimulatedIPAddress() + "\nset " + rd.getSimulatedIPAddress()
+					outToServer.writeUTF("Hello From " + rd.getSimulatedIPAddress() + "\nSet " + rd.getSimulatedIPAddress()
 						+ " state to TWO_WAY");
 
-					client.close();		
+					if(!inFromServer.readUTF().equals("Done"))
+						System.out.println("Error");
+						//client.close();	
+						
 				}
 			}
 			
@@ -144,15 +152,12 @@ public class Router {
 		System.exit(1);
 	}
 
-	public void terminal(String port) {
+	public void terminal() {
 		try {
-			this.rd.setProcessPortNumber(Short.parseShort(port));
-			
-			int portNum = Integer.parseInt(port);
-			ServerSocket serverSocket = new ServerSocket(portNum);
-			
+						
+			ServerSocket serverSocket = new ServerSocket(rd.getProcessPortNumber());	
 			System.out.println("Router:[" + rd.getSimulatedIPAddress() + "] ready...");
-					
+							
 			startClient();
 			
 			while (true) {
@@ -172,8 +177,9 @@ public class Router {
             @Override
             public void run() {
                 try {
-                	InputStreamReader isReader = new InputStreamReader(System.in);
-        			BufferedReader br = new BufferedReader(isReader);
+                	//InputStreamReader isReader = new InputStreamReader(System.in);
+        			//BufferedReader br = new BufferedReader(isReader);
+                	BufferedReader br = new java.io.BufferedReader(new InputStreamReader(System.in));
         			
                 	while (true) {
                 		System.out.print(">> ");
@@ -205,14 +211,8 @@ public class Router {
         				}
 					}
 					br.close();
-					isReader.close();
-
-					/*
-					 * out.write("Hello World!"); out.newLine(); out.flush();
-					 * 
-					 * Thread.sleep(200);
-					 */
-
+					//isReader.close();
+					
 				} catch (IOException e) {
 					e.printStackTrace();
 				}
