@@ -108,10 +108,8 @@ public class Router {
 					outToServer.writeUTF("Hello From " + rd.getSimulatedIPAddress() + "\nSet " + rd.getSimulatedIPAddress()
 						+ " state to TWO_WAY");
 
-					if(!inFromServer.readUTF().equals("Done"))
-						System.out.println("Error");
-						//client.close();	
-						
+					if(inFromServer.readUTF().equals("Done"))			
+						client.close();							
 				}
 			}
 			

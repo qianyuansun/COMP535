@@ -29,7 +29,6 @@ public class RouterThread extends Thread {
 			
 			// as server, accept request from clients
 			String message = null;
-
 			while ((message = inFromClient.readUTF()) != null) {
 				//hello
 				if (message.startsWith("Hello ")) {
@@ -51,6 +50,7 @@ public class RouterThread extends Thread {
 					} else {
 						ports[0].router2.setStatus(RouterStatus.TWO_WAY);
 						outToClient.writeUTF("Done");
+						outToClient.flush();
 					}
 				//r2 router description
 				}else{
@@ -76,8 +76,15 @@ public class RouterThread extends Thread {
 			socket.close();
 
 		} catch (IOException e) {
-			System.out.println("Unable to read from standard in");
-			System.exit(1);
+			//System.out.println("Unable to read from standard in");
+			//System.exit(1);
+			Thread.currentThread().interrupt();
+			try {
+				socket.close();
+			} catch (IOException e1) {
+				e1.printStackTrace();
+			}
+		    return;
 		}
 	}
 }
