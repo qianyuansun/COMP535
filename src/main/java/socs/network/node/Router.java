@@ -92,30 +92,24 @@ public class Router {
 					DataInputStream inFromServer = new DataInputStream(client.getInputStream());
 					
 					outToServer.writeUTF(
-							ports[i].router2.getProcessIPAddress() + " " + rd.getProcessPortNumber() + " " + rd.getSimulatedIPAddress());
+							ports[i].router2.getProcessIPAddress() + " " + rd.getProcessPortNumber() + " " + rd.getSimulatedIPAddress());					
 					
 					if(inFromServer.readUTF().equals("false")){
 						System.out.println("No Spot Avavilable in Router: " + ports[i].router2.getSimulatedIPAddress());
 						continue;
 					}
 					
-					outToServer.writeUTF("Hello From " + rd.getSimulatedIPAddress() + "\nSet " + rd.getSimulatedIPAddress()
-							+ " state to INIT");
-					
-					String message = null;
-					message = inFromServer.readUTF();
-					if(message.startsWith("Hello ")){
-						System.out.println(message);
-						ports[i].router2.setStatus(RouterStatus.TWO_WAY);
+					outToServer.writeUTF("Hello From " + rd.getSimulatedIPAddress() + " \nSet " + rd.getSimulatedIPAddress()
+							+ " state to INIT");					
 
-						outToServer.writeUTF("Hello From " + rd.getSimulatedIPAddress() + "\nSet " + rd.getSimulatedIPAddress()
-							+ " state to TWO_WAY");
-					}
+					System.out.println(inFromServer.readUTF());
+					ports[i].router2.setStatus(RouterStatus.TWO_WAY);
 
-					if(inFromServer.readUTF().equals("Done")){
-						client.close();
-					}			
-												
+					outToServer.writeUTF("Hello From " + rd.getSimulatedIPAddress() + " \nSet " + rd.getSimulatedIPAddress()
+						+ " state to TWO_WAY");					
+
+					if(inFromServer.readUTF().equals("Done"))			
+						client.close();							
 				}
 			}
 			
@@ -181,8 +175,7 @@ public class Router {
             @Override
             public void run() {
                 try {
-                	//InputStreamReader isReader = new InputStreamReader(System.in);
-        			//BufferedReader br = new BufferedReader(isReader);
+                	
                 	BufferedReader br = new java.io.BufferedReader(new InputStreamReader(System.in));
         			
                 	while (true) {

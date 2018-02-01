@@ -34,24 +34,36 @@ public class RouterThread extends Thread {
 				if (message.startsWith("Hello ")) {
 					
 					System.out.println(message);
-					
-					/*
 					String[] arguments = message.split(" ");
 					String simulatedIP = arguments[2];
-					
-					for(for (int i = 0; i < 4; i++) {){
-						if(link.router2.getSimulatedIPAddress().equals(simulatedIP)){
-						}
-					} */
 
-					if (ports[0].router2.getStatus() == null) {
-						ports[0].router2.setStatus(RouterStatus.INIT);
-						outToClient.writeUTF("Hello From " + rd.getSimulatedIPAddress() + "\nSet " + rd.getSimulatedIPAddress() + " state to TWO_WAY");
-					} else {
-						ports[0].router2.setStatus(RouterStatus.TWO_WAY);
-						outToClient.writeUTF("Done");
-						
+					boolean found = false;
+					for (int i = 0; i < 4; i++) {
+						if(ports[i] != null && ports[i].router2.getSimulatedIPAddress().equals(simulatedIP)){
+							found = true;
+							
+							if (ports[i].router2.getStatus() == null) {
+								
+								ports[i].router2.setStatus(RouterStatus.INIT);
+								outToClient.writeUTF("Hello From " + rd.getSimulatedIPAddress() + " \nSet " + rd.getSimulatedIPAddress() + " state to TWO_WAY");
+								
+							} else if(ports[i].router2.getStatus() == RouterStatus.INIT) {
+								
+								ports[i].router2.setStatus(RouterStatus.TWO_WAY);
+								outToClient.writeUTF("Done");
+								
+							}
+							else {
+								outToClient.writeUTF("Already Started.");
+								
+							}
+							break;
+						}
 					}
+					if(!found){
+						outToClient.writeUTF("Didn't find this SimulatedIPAddress.");
+					}
+					
 				//r2 router description
 				}else{
 					String[] arguments = message.split(" ");
@@ -70,23 +82,16 @@ public class RouterThread extends Thread {
 							break;
 						}
 					}
-					outToClient.writeUTF(hasSpot);					
+					outToClient.writeUTF(hasSpot);	
+					//outToClient.flush();
 				}
-			}
-			socket.sendUrgentData(0xff);
-			outToClient.flush();
-			
+			}			
 			socket.close();
 
 		} catch (IOException e) {
 			//System.out.println("Unable to read from standard in");
 			//System.exit(1);
 			Thread.currentThread().interrupt();
-			try {
-				socket.close();
-			} catch (IOException e1) {
-				e1.printStackTrace();
-			}
 		    return;
 		}
 	}
