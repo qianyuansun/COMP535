@@ -101,15 +101,21 @@ public class Router {
 					
 					outToServer.writeUTF("Hello From " + rd.getSimulatedIPAddress() + "\nSet " + rd.getSimulatedIPAddress()
 							+ " state to INIT");
+					
+					String message = null;
+					message = inFromServer.readUTF();
+					if(message.startsWith("Hello ")){
+						System.out.println(message);
+						ports[i].router2.setStatus(RouterStatus.TWO_WAY);
 
-					System.out.println(inFromServer.readUTF());
-					ports[i].router2.setStatus(RouterStatus.TWO_WAY);
+						outToServer.writeUTF("Hello From " + rd.getSimulatedIPAddress() + "\nSet " + rd.getSimulatedIPAddress()
+							+ " state to TWO_WAY");
+					}
 
-					outToServer.writeUTF("Hello From " + rd.getSimulatedIPAddress() + "\nSet " + rd.getSimulatedIPAddress()
-						+ " state to TWO_WAY");
-
-					if(inFromServer.readUTF().equals("Done"))			
-						client.close();							
+					if(inFromServer.readUTF().equals("Done")){
+						client.close();
+					}			
+												
 				}
 			}
 			

@@ -50,7 +50,7 @@ public class RouterThread extends Thread {
 					} else {
 						ports[0].router2.setStatus(RouterStatus.TWO_WAY);
 						outToClient.writeUTF("Done");
-						outToClient.flush();
+						
 					}
 				//r2 router description
 				}else{
@@ -72,7 +72,10 @@ public class RouterThread extends Thread {
 					}
 					outToClient.writeUTF(hasSpot);					
 				}
-			}			
+			}
+			socket.sendUrgentData(0xff);
+			outToClient.flush();
+			
 			socket.close();
 
 		} catch (IOException e) {

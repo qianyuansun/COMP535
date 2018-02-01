@@ -3,8 +3,10 @@ mvn exec:java -Dexec.mainClass="socs.network.Main" -Dexec.args="./conf/router1.c
 mvn exec:java -Dexec.mainClass="socs.network.Main" -Dexec.args="./conf/router2.conf 5001"
 
 cd C:\Users\zyqly\git\COMP535
+cd git\COMP535
 mvn compile
 mvn compile assembly:single
 
 attach 192.168.1.38 5001 192.168.1.100 0
 attach 142.157.59.50 5001 192.168.1.100 0
+attach 142.157.26.237 5001 192.168.1.100 0
