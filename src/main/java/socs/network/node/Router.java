@@ -139,7 +139,11 @@ public class Router {
 	 * output the neighbors of the routers
 	 */
 	private void processNeighbors() {
-		System.out.println("IP Address of the neighbor1: " + ports[0].router2.getSimulatedIPAddress());
+		for (int i = 0; i < 4; i++) {
+			if (ports[i] != null) {
+				System.out.println("IP Address of the neighbor[" + i + "] : " + ports[i].router2.getSimulatedIPAddress());
+			}
+		}
 	}
 
 	/**
