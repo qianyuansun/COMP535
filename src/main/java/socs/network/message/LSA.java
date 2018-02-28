@@ -21,4 +21,9 @@ public class LSA implements Serializable {
     sb.append("\n");
     return sb.toString();
   }
+  
+  public void addLink(LinkDescription linkDes){
+	  this.links.add(linkDes);
+	  lsaSeqNumber++;
+  }
 }
