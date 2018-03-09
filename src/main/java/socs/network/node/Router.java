@@ -1,16 +1,18 @@
 package socs.network.node;
 
 import java.io.BufferedReader;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.Vector;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Vector;
 
 import socs.network.message.LSA;
 import socs.network.message.LinkDescription;
@@ -22,6 +24,8 @@ public class Router {
 	static RouterDescription rd = new RouterDescription();
 	protected LinkStateDatabase lsd;
 	static Link[] ports = new Link[4];
+	List<Socket> socketList = new ArrayList<Socket>();
+	Map<String, ObjectOutputStream> oosMap = new HashMap<String, ObjectOutputStream>();
 
 	public Router(Configuration config) {
 		rd.simulatedIPAddress = config.getString("socs.network.router.ip");
@@ -64,8 +68,9 @@ public class Router {
 	 * cost to transmitting data through the link
 	 * <p/>
 	 * NOTE: this command should not trigger link database synchronization
+	 * @throws IOException 
 	 */
-	private void processAttach(String processIP, short processPort, String simulatedIP, short weight) {
+	private void processAttach(String processIP, short processPort, String simulatedIP, short weight) throws IOException {
 
 		String msg = "Connection cannot be established.";
 		
@@ -73,6 +78,9 @@ public class Router {
 			if(ports[i] == null){
 				RouterDescription r2 = new RouterDescription(processIP, processPort, simulatedIP);
 				ports[i] = new Link(rd, r2,weight);
+				Socket client2 = new Socket(r2.getProcessIPAddress(), r2.getProcessPortNumber());
+				socketList.add(client2);
+				oosMap.put(r2.getSimulatedIPAddress(), new ObjectOutputStream(client2.getOutputStream()));
 				msg = "Connection established.";
 				break;
 			}
@@ -84,28 +92,17 @@ public class Router {
 	/**
 	 * broadcast Hello to neighbors
 	 */
-	private void processStart() {
+	private boolean processStart() {
 
-		try {
-			boolean hasNeighbour = false;
-			
+		boolean hasNeighbour = false;
+		boolean isUpdated = false;
+		try {	
 			for (int i = 0; i < 4; i++) {
 				if(ports[i] != null){
 					hasNeighbour = true;
-					
-					Socket client = new Socket(ports[i].router2.getProcessIPAddress(), ports[i].router2.getProcessPortNumber());
-					
-					//DataOutputStream outToServer = new DataOutputStream(client.getOutputStream());
-					//DataInputStream inFromServer = new DataInputStream(client.getInputStream());
+					Socket client = new Socket(ports[i].router2.getProcessIPAddress(), ports[i].router2.getProcessPortNumber());										
 					ObjectOutputStream oos = new ObjectOutputStream(client.getOutputStream());
 					ObjectInputStream ois = new ObjectInputStream(client.getInputStream());
-					
-					//outToServer.writeUTF(ports[i].router2.getProcessIPAddress() + " " + rd.getProcessPortNumber() + " " + rd.getSimulatedIPAddress() + " " + ports[i].weight);					
-					/*
-					if(ois.readUTF().equals("false")){
-						System.out.println("No Spot Avavilable in Router: " + ports[i].router2.getSimulatedIPAddress());
-						continue;
-					} */
 					
 					SOSPFPacket pack = new SOSPFPacket(); 
 					pack.srcProcessIP = ports[i].router2.getProcessIPAddress();
@@ -114,58 +111,39 @@ public class Router {
 					pack.weight = ports[i].weight;
 					pack.sospfType = 0;
 					oos.writeObject(pack);
-					//outToServer.writeUTF("Hello From " + rd.getSimulatedIPAddress() + " \nSet " + rd.getSimulatedIPAddress()
-							//+ " state to INIT");	
-					
+										
 					SOSPFPacket backPack = (SOSPFPacket) ois.readObject();
-					System.out.println("Hello From " + backPack.srcIP + " \nSet " + backPack.srcIP + " state to TWO_WAY");
+					
+					if(backPack.sospfType == 2){
+						System.out.println("Already Started.");
+						client.close();
+						continue;
+					}
+					
+					System.out.println("Hello From " + ports[i].router2.getSimulatedIPAddress() + " \nSet " + ports[i].router2.getSimulatedIPAddress() + " state to TWO_WAY");
 					ports[i].router2.setStatus(RouterStatus.TWO_WAY);
 
-					//outToServer.writeUTF("Hello From " + rd.getSimulatedIPAddress() + " \nSet " + rd.getSimulatedIPAddress()
-						//+ " state to TWO_WAY");
-					oos.writeObject(pack);
-					
-					
-					//if(ois.readUTF().equals("Done"))			
-						client.close();	
+					oos.writeObject(pack);							
 					
 					//1.creates linkDescription for this new link
 					//2. adds this new link to the LSA
 					LinkDescription newLinkDes = new LinkDescription(ports[i].router2.getSimulatedIPAddress(), ports[i].router2.getProcessPortNumber(), ports[i].weight);
 					this.lsd.addLink(rd.getSimulatedIPAddress(), newLinkDes);
+					isUpdated = true;
+					
+					client.close();	
 				}
 				
-			}
-			if(!hasNeighbour){ 
-				System.out.println("No Neighbour Connected.");
-				return;
-			}
-			
-			//TODO: 3. shares the LSP with all neighbors			
-			SOSPFPacket newPack = new SOSPFPacket(); 
-			newPack.sospfType = 1;
-			newPack.lsaArray = new Vector<LSA>();
-			for(Entry<String, LSA> lsa : lsd._store.entrySet()){
-				newPack.lsaArray.addElement(lsa.getValue());				
-			}
-			
-			//TODO: for loop
-			for (int i = 0; i < 4; i++) {
-				if (ports[i] != null) {
-					Socket client2 = new Socket(ports[i].router2.getProcessIPAddress(),
-							ports[i].router2.getProcessPortNumber());
-					ObjectOutputStream oos = new ObjectOutputStream(client2.getOutputStream());
-					oos.writeObject(newPack);
-					client2.close();
-				}
-			}
-			
-			
-			
+			}						
 		} catch (IOException | ClassNotFoundException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+		
+		if(!hasNeighbour){ 
+			System.out.println("No Neighbour Connected.");
+		}
+		return isUpdated;
 	}
 
 	/**
@@ -208,8 +186,8 @@ public class Router {
 			startClient();
 			
 			while (true) {
-				Socket socket = serverSocket.accept();
-				new RouterThread(socket, rd, ports, lsd).start();
+				Socket socket = serverSocket.accept();				
+				new RouterThread(socket, rd, ports, lsd, socketList, oosMap).start();
 			}
 			
 		} catch (IOException e) {
@@ -243,7 +221,10 @@ public class Router {
         					String[] cmdLine = command.split(" ");
         					processAttach(cmdLine[1], Short.parseShort(cmdLine[2]), cmdLine[3], Short.parseShort(cmdLine[4]));
         				} else if (command.equals("start")) {
-        					processStart();
+        					boolean isUpdated = processStart();
+        					if(isUpdated){
+        						sendNewPack();
+        					}
         				} else if (command.equals("connect ")) {
         					String[] cmdLine = command.split(" ");
         					processConnect(cmdLine[1], Short.parseShort(cmdLine[2]), cmdLine[3], Short.parseShort(cmdLine[4]));
@@ -265,5 +246,21 @@ public class Router {
 			}
 		}).start();
 	}
+	
+	public void sendNewPack() throws IOException {
 
+		SOSPFPacket newPack = new SOSPFPacket();
+		newPack.srcIP = rd.getSimulatedIPAddress();
+		newPack.sospfType = 1;
+		newPack.lsaArray = new Vector<LSA>();
+		for (Entry<String, LSA> lsa : lsd._store.entrySet()) {
+			newPack.lsaArray.addElement(lsa.getValue());
+		}
+
+		for (Entry<String, ObjectOutputStream> e : oosMap.entrySet()) {
+			e.getValue().writeObject(newPack);
+			System.out.println(newPack.lsaArray.toString());
+			System.out.println("Send pack out");
+		}
+	}
 }

@@ -99,6 +99,10 @@ public class Dijkstra {
 	public String getPath(HashMap<String, LSA> store, String source, String destination) {
 		this.createNodes(store);
 		Vertex target = nodeList.get(destination);
+		if(target == null){
+			return "Cannot reach this router." ;
+			
+		}
 		computePaths(nodeList.get(source)); // run Dijkstra
 		System.out.println("Distance to " + target + ": " + target.minDistance);
 		List<Vertex> path = getShortestPathTo(target);
