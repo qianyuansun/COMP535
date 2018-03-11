@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -50,7 +51,7 @@ public class RouterThread extends Thread {
 				if (pack.sospfType == 0) {					
 					boolean isUpdated = communicate(oos, pack);	
 					if(isUpdated){
-						this.sendNewPack(null);
+						this.sendNewPack();
 					}
 				}else {
 					System.out.println("Receive Updated LSD from: " + pack.srcIP + " : " + pack.lsaArray.toString());
@@ -110,9 +111,11 @@ public class RouterThread extends Thread {
 		
 	}
 	
-	public void sendNewPack(String ip) throws IOException{
+	public void sendNewPack() throws IOException{
 		
 		SOSPFPacket newPack = new SOSPFPacket(); 
+		newPack.srcIpList = new ArrayList<String>();
+		newPack.srcIpList.add(rd.getSimulatedIPAddress());
 		newPack.srcIP = rd.getSimulatedIPAddress();
 		newPack.sospfType = 1;
 		newPack.lsaArray = new Vector<LSA>();
@@ -121,9 +124,7 @@ public class RouterThread extends Thread {
 		}
 		
 		for(Entry<String, ObjectOutputStream> e : oosMap.entrySet()){
-			if(e.getKey().equals(ip)){
-				continue;
-			}
+
 			e.getValue().writeObject(newPack);
 			System.out.println("Send pack out to: " + e.getKey());
 		}
@@ -167,16 +168,18 @@ public class RouterThread extends Thread {
 		System.out.println(lsd._store.toString());
 
 		SOSPFPacket newPack = new SOSPFPacket(); 
+		newPack.srcIpList = pack.srcIpList;
+		newPack.srcIpList.add(rd.getSimulatedIPAddress());
 		newPack.srcIP = rd.getSimulatedIPAddress();
 		newPack.sospfType = 1;
 		newPack.lsaArray = new Vector<LSA>();
 		for(Entry<String, LSA> lsa : lsd._store.entrySet()){
 			newPack.lsaArray.addElement(lsa.getValue());				
 		}
-		System.out.println("server updatedPack lsaArray: "+ newPack.lsaArray.toString());
+		System.out.println("server updatedPack: lsaArray: "+ newPack.lsaArray.toString());
 		
 		for(Entry<String, ObjectOutputStream> e : oosMap.entrySet()){
-			if(e.getKey().equals(pack.srcIP)){
+			if(pack.srcIpList.contains(e.getKey())){
 				continue;
 			}
 			e.getValue().writeObject(newPack);

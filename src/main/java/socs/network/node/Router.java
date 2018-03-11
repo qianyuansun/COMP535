@@ -116,7 +116,7 @@ public class Router {
 					
 					if(backPack.sospfType == 2){
 						System.out.println("Already Started.");
-						client.close();
+						//client.close();
 						continue;
 					}
 					
@@ -131,7 +131,7 @@ public class Router {
 					this.lsd.addLink(rd.getSimulatedIPAddress(), newLinkDes);
 					isUpdated = true;
 					
-					client.close();	
+					//client.close();	
 				}
 				
 			}						
@@ -250,6 +250,8 @@ public class Router {
 	public void sendNewPack() throws IOException {
 
 		SOSPFPacket newPack = new SOSPFPacket();
+		newPack.srcIpList = new ArrayList<String>();
+		newPack.srcIpList.add(rd.getSimulatedIPAddress());
 		newPack.srcIP = rd.getSimulatedIPAddress();
 		newPack.sospfType = 1;
 		newPack.lsaArray = new Vector<LSA>();

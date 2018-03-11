@@ -1,6 +1,7 @@
 package socs.network.message;
 
 import java.io.*;
+import java.util.List;
 import java.util.Vector;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -27,5 +28,7 @@ public class SOSPFPacket implements Serializable {
   public Vector<LSA> lsaArray = null;
   
   public short weight;
+  
+  public List<String> srcIpList;
 
 }
