@@ -120,7 +120,9 @@ public class RouterThread extends Thread {
 		newPack.sospfType = 1;
 		newPack.lsaArray = new Vector<LSA>();
 		for(Entry<String, LSA> lsa : lsd._store.entrySet()){
-			newPack.lsaArray.addElement(lsa.getValue());				
+			LSA newLsa = lsa.getValue().copy();
+			newPack.lsaArray.addElement(newLsa);
+			//newPack.lsaArray.addElement(lsa.getValue());				
 		}
 		
 		for(Entry<String, ObjectOutputStream> e : oosMap.entrySet()){
@@ -174,7 +176,9 @@ public class RouterThread extends Thread {
 		newPack.sospfType = 1;
 		newPack.lsaArray = new Vector<LSA>();
 		for(Entry<String, LSA> lsa : lsd._store.entrySet()){
-			newPack.lsaArray.addElement(lsa.getValue());				
+			LSA newLsa = lsa.getValue().copy();
+			newPack.lsaArray.addElement(newLsa);
+			//newPack.lsaArray.addElement(lsa.getValue());				
 		}
 		System.out.println("server updatedPack: lsaArray: "+ newPack.lsaArray.toString());
 		

@@ -256,7 +256,8 @@ public class Router {
 		newPack.sospfType = 1;
 		newPack.lsaArray = new Vector<LSA>();
 		for (Entry<String, LSA> lsa : lsd._store.entrySet()) {
-			newPack.lsaArray.addElement(lsa.getValue());
+			LSA newLsa = lsa.getValue().copy();
+			newPack.lsaArray.addElement(newLsa);
 		}
 
 		for (Entry<String, ObjectOutputStream> e : oosMap.entrySet()) {

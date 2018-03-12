@@ -26,4 +26,17 @@ public class LSA implements Serializable {
 	  this.links.add(linkDes);
 	  lsaSeqNumber++;
   }
+  
+  public LSA copy(){
+	LSA copyLsa = new LSA();
+	copyLsa.linkStateID = this.linkStateID;
+	copyLsa.lsaSeqNumber = this.lsaSeqNumber;
+	LinkedList<LinkDescription> copyLinks = new LinkedList<LinkDescription>();
+	for(LinkDescription ld: links){
+		copyLinks.add(ld);
+	}
+	copyLsa.links = copyLinks;
+	return copyLsa;
+	  
+  }
 }
