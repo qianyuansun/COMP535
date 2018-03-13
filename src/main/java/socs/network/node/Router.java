@@ -8,9 +8,6 @@ import java.io.ObjectOutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Vector;
 
@@ -24,8 +21,8 @@ public class Router {
 	static RouterDescription rd = new RouterDescription();
 	protected LinkStateDatabase lsd;
 	static Link[] ports = new Link[4];
-	List<Socket> socketList = new ArrayList<Socket>();
-	Map<String, ObjectOutputStream> oosMap = new HashMap<String, ObjectOutputStream>();
+	Socket[] sockets = new Socket[4];
+	ObjectOutputStream[] oosList = new ObjectOutputStream[4];
 
 	public Router(Configuration config) {
 		rd.simulatedIPAddress = config.getString("socs.network.router.ip");
@@ -79,8 +76,8 @@ public class Router {
 				RouterDescription r2 = new RouterDescription(processIP, processPort, simulatedIP);
 				ports[i] = new Link(rd, r2,weight);
 				Socket client2 = new Socket(r2.getProcessIPAddress(), r2.getProcessPortNumber());
-				socketList.add(client2);
-				oosMap.put(r2.getSimulatedIPAddress(), new ObjectOutputStream(client2.getOutputStream()));
+				sockets[i] = client2;
+				oosList[i] = new ObjectOutputStream(client2.getOutputStream());
 				msg = "Connection established.";
 				break;
 			}
@@ -187,7 +184,7 @@ public class Router {
 			
 			while (true) {
 				Socket socket = serverSocket.accept();				
-				new RouterThread(socket, rd, ports, lsd, socketList, oosMap).start();
+				new RouterThread(socket, rd, ports, lsd, sockets, oosList).start();
 			}
 			
 		} catch (IOException e) {
@@ -256,14 +253,16 @@ public class Router {
 		newPack.sospfType = 1;
 		newPack.lsaArray = new Vector<LSA>();
 		for (Entry<String, LSA> lsa : lsd._store.entrySet()) {
-			LSA newLsa = lsa.getValue().copy();
-			newPack.lsaArray.addElement(newLsa);
+			newPack.lsaArray.addElement(lsa.getValue().copy());
 		}
-
-		for (Entry<String, ObjectOutputStream> e : oosMap.entrySet()) {
-			e.getValue().writeObject(newPack);
-			System.out.println(newPack.lsaArray.toString());
-			System.out.println("Send pack out");
+		
+		for (int i = 0; i < 4; i++) {
+			if(ports[i] != null){
+				synchronized (sockets[i]) {
+					//System.out.println("as client Send pack to" + ports[i].router2.getSimulatedIPAddress());	
+					oosList[i].writeObject(newPack);
+			    }
+			}
 		}
 	}
 }

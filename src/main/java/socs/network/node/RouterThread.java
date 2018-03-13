@@ -5,8 +5,6 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Vector;
 
@@ -18,8 +16,8 @@ public class RouterThread extends Thread {
 
 	Socket socket;
 	RouterDescription rd;
-	List<Socket> socketList;
-	Map<String, ObjectOutputStream> oosMap;
+	Socket[] sockets;
+	ObjectOutputStream[] oosList;
 
 	// assuming that all routers are with 4 ports
 	Link[] ports;
@@ -29,34 +27,33 @@ public class RouterThread extends Thread {
 	RouterThread() {
 	}
 
-	RouterThread(Socket socket, RouterDescription rd, Link[] ports, LinkStateDatabase lsd, List<Socket> socketList, Map<String, ObjectOutputStream> oosMap) throws IOException {
+	RouterThread(Socket socket, RouterDescription rd, Link[] ports, LinkStateDatabase lsd, Socket[] sockets, ObjectOutputStream[] oosList) throws IOException {
 		this.socket = socket;
 		this.rd = rd;
 		this.ports = ports;
 		this.lsd = lsd;
-		this.socketList = socketList;
-		this.oosMap = oosMap;
+		this.sockets = sockets;
+		this.oosList = oosList;
 	}
 
 	public void run() {
 		try {
-			
-			ObjectInputStream ois  = new ObjectInputStream( socket.getInputStream());
 			ObjectOutputStream oos  = new ObjectOutputStream( socket.getOutputStream());
+			oos.flush();
+			ObjectInputStream ois  = new ObjectInputStream( socket.getInputStream());
 			
-			// as server, accept request from clients
 			SOSPFPacket pack = null;
 			while ((pack = (SOSPFPacket) ois.readObject()) != null) {
 				
 				if (pack.sospfType == 0) {					
 					boolean isUpdated = communicate(oos, pack);	
 					if(isUpdated){
-						this.sendNewPack();
+						this.sendNewPack(null);
 					}
 				}else {
-					System.out.println("Receive Updated LSD from: " + pack.srcIP + " : " + pack.lsaArray.toString());
-					//System.out.println(pack.lsaArray.toString());
-					updateLSA(pack);	
+					//System.out.println("Receive Updated LSD from: " + pack.srcIP + " : " + pack.lsaArray.toString());
+					updateLSA(pack);
+					this.sendNewPack(pack);
 				}
 			}			
 			socket.close();
@@ -105,30 +102,36 @@ public class RouterThread extends Thread {
 			newPack.sospfType = 0;
 			newPack.srcIP = rd.getSimulatedIPAddress();
 			outToClient.writeObject(newPack);
-		}
-		
-		return isUpdated;
-		
+		}		
+		return isUpdated;		
 	}
 	
-	public void sendNewPack() throws IOException{
+	public void sendNewPack(SOSPFPacket pack) throws IOException{
 		
-		SOSPFPacket newPack = new SOSPFPacket(); 
-		newPack.srcIpList = new ArrayList<String>();
+		SOSPFPacket newPack = new SOSPFPacket();
+		if (pack == null) {
+			newPack.srcIpList = new ArrayList<String>();
+		} else {
+			newPack.srcIpList = pack.srcIpList;
+		}
 		newPack.srcIpList.add(rd.getSimulatedIPAddress());
 		newPack.srcIP = rd.getSimulatedIPAddress();
 		newPack.sospfType = 1;
 		newPack.lsaArray = new Vector<LSA>();
 		for(Entry<String, LSA> lsa : lsd._store.entrySet()){
-			LSA newLsa = lsa.getValue().copy();
-			newPack.lsaArray.addElement(newLsa);
-			//newPack.lsaArray.addElement(lsa.getValue());				
+			newPack.lsaArray.addElement(lsa.getValue().copy());	
 		}
 		
-		for(Entry<String, ObjectOutputStream> e : oosMap.entrySet()){
-
-			e.getValue().writeObject(newPack);
-			System.out.println("Send pack out to: " + e.getKey());
+		for (int i = 0; i < 4; i++) {
+			if(ports[i] != null){
+				if(newPack.srcIpList.contains(ports[i].router2.getSimulatedIPAddress())){
+					continue;
+				}				
+				synchronized (sockets[i]) {
+					//System.out.println("as server Send pack to" + ports[i].router2.getSimulatedIPAddress());	
+					oosList[i].writeObject(newPack);
+			    }
+			}
 		}
 	}
 	
@@ -147,8 +150,8 @@ public class RouterThread extends Thread {
 				r2.setStatus(RouterStatus.INIT);
 				ports[i] = new Link(rd, r2, weight);
 				Socket client2 = new Socket(r2.getProcessIPAddress(), r2.getProcessPortNumber());
-				socketList.add(client2);
-				oosMap.put(r2.getSimulatedIPAddress(), new ObjectOutputStream(client2.getOutputStream()));
+				sockets[i] = client2;
+				oosList[i] = new ObjectOutputStream(client2.getOutputStream());
 				break;
 			}
 		}
@@ -159,35 +162,14 @@ public class RouterThread extends Thread {
 		for (LSA l : lsaArray) {
 			if (lsd._store.containsKey(l.linkStateID)) {
 				if (lsd._store.get(l.linkStateID).lsaSeqNumber < l.lsaSeqNumber) {
-					System.out.println("Updated");
+					//System.out.println("Updated");
 					lsd._store.put(l.linkStateID, l);
 				}
 			} else {
-				System.out.println("Add new LSA");
+				//System.out.println("Add new LSA");
 				lsd._store.put(l.linkStateID, l);
 			}
 		}
-		System.out.println(lsd._store.toString());
-
-		SOSPFPacket newPack = new SOSPFPacket(); 
-		newPack.srcIpList = pack.srcIpList;
-		newPack.srcIpList.add(rd.getSimulatedIPAddress());
-		newPack.srcIP = rd.getSimulatedIPAddress();
-		newPack.sospfType = 1;
-		newPack.lsaArray = new Vector<LSA>();
-		for(Entry<String, LSA> lsa : lsd._store.entrySet()){
-			LSA newLsa = lsa.getValue().copy();
-			newPack.lsaArray.addElement(newLsa);
-			//newPack.lsaArray.addElement(lsa.getValue());				
-		}
-		System.out.println("server updatedPack: lsaArray: "+ newPack.lsaArray.toString());
-		
-		for(Entry<String, ObjectOutputStream> e : oosMap.entrySet()){
-			if(pack.srcIpList.contains(e.getKey())){
-				continue;
-			}
-			e.getValue().writeObject(newPack);
-			System.out.println("Send updatedPack out to: " + e.getKey());
-		}
+		//System.out.println(lsd._store.toString());
 	}
 }

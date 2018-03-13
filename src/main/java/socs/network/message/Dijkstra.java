@@ -9,7 +9,7 @@ import java.util.Map.Entry;
 import java.util.PriorityQueue;
 
 class Vertex implements Comparable<Vertex> {
-	// public Edge[] adjacencies;
+	
 	public List<Edge> adjacencies;
 	public double minDistance = Double.POSITIVE_INFINITY;
 	public Vertex previous;
@@ -104,10 +104,10 @@ public class Dijkstra {
 		List<Vertex> path = getShortestPathTo(target);
 		String shortestPath = "Path: ";
 		String[] path2 = new String[path.size()];
-		path2[0] = path.get(0) + "->";
+		path2[0] = path.get(0) + "";
 		shortestPath = shortestPath + path2[0];
 		for(int i = 1; i < path.size(); i++){
-			path2[i] = "(" + Double.toString(path.get(i).minDistance) + ")" + path.get(i) + "->";
+			path2[i] = " ->(" + Double.toString(path.get(i).minDistance - path.get(i-1).minDistance) + ") " + path.get(i);
 			shortestPath = shortestPath + path2[i];
 		}	
 		return shortestPath;
