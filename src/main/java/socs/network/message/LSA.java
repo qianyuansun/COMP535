@@ -27,6 +27,16 @@ public class LSA implements Serializable {
 	  lsaSeqNumber++;
   }
   
+  public void deleteLink(short portNum){
+	  for(LinkDescription ld : links){
+		 if(ld.portNum == portNum){
+			 links.remove(ld);
+			 break;
+		 }
+	  }
+	  lsaSeqNumber++;
+  }
+  
   public LSA copy(){
 	LSA copyLsa = new LSA();
 	copyLsa.linkStateID = this.linkStateID;

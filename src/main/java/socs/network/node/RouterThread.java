@@ -4,8 +4,12 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
+import java.net.SocketTimeoutException;
 import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.Vector;
 
 import socs.network.message.LSA;
@@ -18,6 +22,9 @@ public class RouterThread extends Thread {
 	RouterDescription rd;
 	Socket[] sockets;
 	ObjectOutputStream[] oosList;
+	String clientIP;
+	short clientPort;
+	HeartBeats heartbeats;
 
 	// assuming that all routers are with 4 ports
 	Link[] ports;
@@ -27,13 +34,16 @@ public class RouterThread extends Thread {
 	RouterThread() {
 	}
 
-	RouterThread(Socket socket, RouterDescription rd, Link[] ports, LinkStateDatabase lsd, Socket[] sockets, ObjectOutputStream[] oosList) throws IOException {
+	RouterThread(Socket socket, RouterDescription rd, Link[] ports, LinkStateDatabase lsd, Socket[] sockets, ObjectOutputStream[] oosList, HeartBeats heartbeats) throws IOException {
 		this.socket = socket;
 		this.rd = rd;
 		this.ports = ports;
 		this.lsd = lsd;
 		this.sockets = sockets;
 		this.oosList = oosList;
+		this.heartbeats = heartbeats;
+		
+		socket.setSoTimeout(30000);
 	}
 
 	public void run() {
@@ -50,19 +60,35 @@ public class RouterThread extends Thread {
 					if(isUpdated){
 						this.sendNewPack(null);
 					}
-				}else {
-					//System.out.println("Receive Updated LSD from: " + pack.srcIP + " : " + pack.lsaArray.toString());
+				} else if (pack.sospfType == 3) {
+					System.out.println("Router: " + pack.srcIP + " alive.");					
+				} else {
+					// System.out.println("Receive Updated LSD from: " + pack.srcIP + " : " + pack.lsaArray.toString());
 					updateLSA(pack);
 					this.sendNewPack(pack);
 				}
 			}			
-			socket.close();
 			
-		} catch (IOException | ClassNotFoundException e) {
-			//System.out.println("Unable to read from standard in");
-			//System.exit(1);
-			Thread.currentThread().interrupt();
-		    return;
+		} catch (SocketTimeoutException s) {
+			// update lsa	
+			if (clientIP != null) {
+				System.out.println(clientIP + " socket timed out.");
+				this.deleteNeighbor(clientPort);
+				try {
+					this.sendNewPack(null);
+					socket.close();
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+
+		} catch (IOException e) {
+			//Thread.currentThread().interrupt();
+			//return;
+		} catch (ClassNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
 	}
 	
@@ -143,6 +169,8 @@ public class RouterThread extends Thread {
 		Short processPort = pack.srcProcessPort;
 		String simulatedIP = pack.srcIP;
 		Short weight = pack.weight;
+		clientIP = simulatedIP;
+		clientPort = processPort;
 
 		for (int i = 0; i < 4; i++) {
 			if (ports[i] == null) {
@@ -152,6 +180,7 @@ public class RouterThread extends Thread {
 				Socket client2 = new Socket(r2.getProcessIPAddress(), r2.getProcessPortNumber());
 				sockets[i] = client2;
 				oosList[i] = new ObjectOutputStream(client2.getOutputStream());
+				heartbeats.setAll(ports, sockets, oosList);
 				break;
 			}
 		}
@@ -159,6 +188,7 @@ public class RouterThread extends Thread {
 	
 	public void updateLSA(SOSPFPacket pack) throws IOException {
 		Vector<LSA> lsaArray = pack.lsaArray;
+		Vector<String> lsaArrayKeys = this.generateKeySet(lsaArray);
 		for (LSA l : lsaArray) {
 			if (lsd._store.containsKey(l.linkStateID)) {
 				if (lsd._store.get(l.linkStateID).lsaSeqNumber < l.lsaSeqNumber) {
@@ -170,6 +200,40 @@ public class RouterThread extends Thread {
 				lsd._store.put(l.linkStateID, l);
 			}
 		}
-		//System.out.println(lsd._store.toString());
+		//removed deleted lsa for other routers
+		
+		Iterator<Entry<String, LSA>> iter = lsd._store.entrySet().iterator();
+		while (iter.hasNext()) {
+		    Entry<String, LSA> entry = iter.next();
+		    if(!lsaArrayKeys.contains(entry.getKey())){
+		        iter.remove();
+		    }
+		}
+		
+	}
+	
+	public void deleteNeighbor(short portNumber){
+		for (int i = 0; i < 4; i++) {
+			if (ports[i] != null && ports[i].router2.getProcessPortNumber() == portNumber) {
+				String simulatedIP = ports[i].router2.getSimulatedIPAddress();
+				ports[i] = null;
+				sockets[i] = null;
+				oosList[i] = null;
+				heartbeats.setAll(ports, sockets, oosList);
+				this.lsd.deleteLink(rd.getSimulatedIPAddress(), simulatedIP, portNumber);
+				
+				System.out.println("Neighbor: " + simulatedIP + " has been disconnected.");
+				break;
+			}
+		}
+	}
+	
+	private Vector<String> generateKeySet(Vector<LSA> lsaArray){
+		Vector<String> keySet = new Vector<String>();
+		for(LSA lsa : lsaArray){
+			keySet.add(lsa.linkStateID);
+		}
+		return keySet;
+		
 	}
 }

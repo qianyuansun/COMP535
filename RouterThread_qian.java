@@ -69,11 +69,7 @@ public class RouterThread extends Thread {
 			//System.exit(1);
 			Thread.currentThread().interrupt();
 		    return;
-		} catch (SocketTimeoutException s) {
-	        System.out.println("Socket timed out!");
-	        //update lsa
-	        break;
-	      }
+		} 
 		
 	}
 	

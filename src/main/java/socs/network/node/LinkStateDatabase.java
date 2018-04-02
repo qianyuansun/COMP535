@@ -47,6 +47,13 @@ public class LinkStateDatabase {
 	public void addLink(String linkStateID, LinkDescription linkDes) {
 		_store.get(linkStateID).addLink(linkDes);
 	}
+	
+	public void deleteLink(String linkStateID, String simulatedIP, Short portNum){
+		if(_store.get(linkStateID) != null)
+			_store.get(linkStateID).deleteLink(portNum);
+		if(_store.containsKey(simulatedIP))
+			_store.remove(simulatedIP);
+	}
 
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
