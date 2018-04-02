@@ -3,6 +3,7 @@ package socs.network.node;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
 import java.util.ArrayList;
@@ -43,7 +44,7 @@ public class RouterThread extends Thread {
 		this.oosList = oosList;
 		this.heartbeats = heartbeats;
 		
-		socket.setSoTimeout(30000);
+		//socket.setSoTimeout(30000);
 	}
 
 	public void run() {
@@ -54,25 +55,26 @@ public class RouterThread extends Thread {
 			
 			SOSPFPacket pack = null;
 			while ((pack = (SOSPFPacket) ois.readObject()) != null) {
-				
 				if (pack.sospfType == 0) {					
 					boolean isUpdated = communicate(oos, pack);	
 					if(isUpdated){
 						this.sendNewPack(null);
 					}
 				} else if (pack.sospfType == 3) {
+					clientIP = pack.srcIP;
+					clientPort = pack.srcProcessPort;
 					System.out.println("Router: " + pack.srcIP + " alive.");					
 				} else {
 					// System.out.println("Receive Updated LSD from: " + pack.srcIP + " : " + pack.lsaArray.toString());
 					updateLSA(pack);
 					this.sendNewPack(pack);
 				}
-			}			
-			
+			}				
 		} catch (SocketTimeoutException s) {
 			// update lsa	
 			if (clientIP != null) {
 				System.out.println(clientIP + " socket timed out.");
+				
 				this.deleteNeighbor(clientPort);
 				try {
 					this.sendNewPack(null);
@@ -84,6 +86,18 @@ public class RouterThread extends Thread {
 			}
 
 		} catch (IOException e) {
+			if (clientIP != null) {
+				//Thread.sleep(1000);
+				System.out.println(clientIP + " socket interrupted.");
+				this.deleteNeighbor(clientPort);
+				try {
+					this.sendNewPack(null);
+					//socket.close();
+				} catch (IOException ioe) {
+					// TODO Auto-generated catch block
+					//e.printStackTrace();
+				}
+			}
 			//Thread.currentThread().interrupt();
 			//return;
 		} catch (ClassNotFoundException e) {
@@ -186,7 +200,7 @@ public class RouterThread extends Thread {
 		}
 	}
 	
-	public void updateLSA(SOSPFPacket pack) throws IOException {
+	public void updateLSA(SOSPFPacket pack) {
 		Vector<LSA> lsaArray = pack.lsaArray;
 		Vector<String> lsaArrayKeys = this.generateKeySet(lsaArray);
 		for (LSA l : lsaArray) {
@@ -201,14 +215,14 @@ public class RouterThread extends Thread {
 			}
 		}
 		//removed deleted lsa for other routers
-		
+		/*
 		Iterator<Entry<String, LSA>> iter = lsd._store.entrySet().iterator();
 		while (iter.hasNext()) {
 		    Entry<String, LSA> entry = iter.next();
 		    if(!lsaArrayKeys.contains(entry.getKey())){
 		        iter.remove();
 		    }
-		}
+		} */
 		
 	}
 	

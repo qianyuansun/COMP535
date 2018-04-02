@@ -11,6 +11,7 @@ public class HeartBeats extends TimerTask {
 	
 	//RouterDescription rd = new RouterDescription();	
 	String srcIP;
+	short srcPort;
 	//LinkStateDatabase lsd;
 	Link[] ports;
 	Socket[] sockets;
@@ -26,6 +27,7 @@ public class HeartBeats extends TimerTask {
 	public void run() {
 		// TODO Auto-generated method stub
 		SOSPFPacket pack = new SOSPFPacket();
+		pack.srcProcessPort = srcPort;
 		pack.srcIP = srcIP;
 		pack.sospfType = 3;
 		
@@ -53,6 +55,14 @@ public class HeartBeats extends TimerTask {
 		this.srcIP = srcIP;
 	}
 	
+	public short getSrcPort() {
+		return srcPort;
+	}
+
+	public void setSrcPort(short srcPort) {
+		this.srcPort = srcPort;
+	}
+
 	public void setAll(Link[] ports, Socket[] sockets, ObjectOutputStream[] oosList){
 		this.ports = ports;
 		this.sockets = sockets;

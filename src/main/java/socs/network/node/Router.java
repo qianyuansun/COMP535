@@ -7,6 +7,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketTimeoutException;
 import java.util.ArrayList;
 import java.util.Map.Entry;
 import java.util.Timer;
@@ -31,6 +32,7 @@ public class Router {
 		rd.processPortNumber = config.getShort("socs.network.router.port");
 		lsd = new LinkStateDatabase(rd);		
 		heartbeats.setSrcIP(rd.simulatedIPAddress);
+		heartbeats.setSrcPort(rd.processPortNumber);
 		
 		Timer timer = new Timer();
 		timer.schedule(heartbeats, 1000, 10000);
@@ -195,17 +197,18 @@ public class Router {
 	public void terminal() {
 		try {
 						
-			ServerSocket serverSocket = new ServerSocket(rd.getProcessPortNumber());	
+			ServerSocket serverSocket = new ServerSocket(rd.getProcessPortNumber());
 			System.out.println("Router:[" + rd.getSimulatedIPAddress() + "] ready...");
 							
 			startClient();
 			
 			while (true) {
-				Socket socket = serverSocket.accept();		
+				Socket socket = serverSocket.accept();
+				socket.setSoTimeout(30000);
 				new RouterThread(socket, rd, ports, lsd, sockets, oosList, heartbeats).start();
 			}
 			
-		} catch (IOException e) {
+		}catch (IOException e) {
 			System.out.println("Unable to read from standard in");
 			System.exit(1);
 		}
@@ -326,7 +329,7 @@ public class Router {
 			isUpdated = true;
 
 			// client.close();
-		} catch (ClassNotFoundException e) {
+		}catch (ClassNotFoundException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} catch (IOException e) {
